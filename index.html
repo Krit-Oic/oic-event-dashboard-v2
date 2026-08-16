@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Registration Dashboard V2 - OIC Creation</title>
-    <!-- Fonts & Libraries -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>Event Registration Dashboard V2.1 - OIC Creation</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- เพิ่ม Plugin สำหรับแสดงตัวเลขบนกราฟวงกลม -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; }
     </style>
@@ -18,37 +17,30 @@
 
     <script>
         // =========================================================================
-        // CONFIGURATION: นำ Web App URL (ที่ลงท้ายด้วย /exec) มาวางแทนที่ข้อความด้านล่าง
+        // 1. นำ Web App URL (ที่ลงท้ายด้วย /exec) มาวางในเครื่องหมายคำพูด
         // =========================================================================
         const API_URL = "https://script.google.com/macros/s/AKfycbzdLyBmzJe3HBIfX1jqpDK8tfkLwD42XYzydNvlShv_oQ7D9z7yfwJ86ddsrPcylXNNnw/exec";
+
+        // =========================================================================
+        // 2. นำลิงก์รูปภาพโลโก้ หรือ โค้ด Base64 มาวางในเครื่องหมายคำพูดด้านล่าง
+        // (คุณสามารถนำรูปไปฝากที่ https://postimages.org/ แล้วเอา Direct Link มาใส่ได้)
+        // =========================================================================
+        const LOGO_URL = "https://i.postimg.cc/8C1zzSF0/logo-oic-png-01.png"; 
     </script>
 
-    <!-- 1. LOGIN OVERLAY MODAL -->
+    <!-- LOGIN MODAL -->
     <div id="auth-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8">
-            <!-- Brand Logo (Hardcoded SVG) -->
-            <div class="flex justify-center mb-6">
-                <svg width="200" height="75" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="translate(15, 10)">
-                        <rect x="0" y="0" width="130" height="130" rx="32" fill="#c3d52c"/>
-                        <circle cx="65" cy="65" r="45" fill="none" stroke="#ffffff" stroke-width="16"/>
-                        <circle cx="65" cy="65" r="16" fill="#ffffff"/>
-                        <rect x="57" y="65" width="16" height="45" fill="#ffffff"/>
-                        <circle cx="102" cy="48" r="5" fill="#ffffff"/>
-                        <rect x="99" y="58" width="6" height="26" fill="#ffffff"/>
-                    </g>
-                    <text x="160" y="62" font-family="'Prompt', sans-serif" font-weight="700" font-size="28" fill="#1e293b">OIC CREATION</text>
-                    <text x="160" y="92" font-family="'Prompt', sans-serif" font-weight="400" font-size="15" fill="#64748b">Event Registration Portal V2</text>
-                </svg>
+            <!-- จุดแสดงโลโก้ -->
+            <div class="flex justify-center mb-6 h-20">
+                <img id="login-logo" src="" alt="OIC Creation Logo" class="h-full object-contain">
             </div>
 
-            <!-- Role Selector Tabs -->
             <div class="flex border-b border-slate-200 mb-6">
-                <button id="tab-visitor" onclick="switchTab('visitor')" class="flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-emerald-500 text-emerald-600 transition">ผู้เยี่ยมชม (Visitor)</button>
-                <button id="tab-admin" onclick="switchTab('admin')" class="flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition">ผู้ดูแลระบบ (Admin)</button>
+                <button id="tab-visitor" onclick="switchLoginTab('visitor')" class="flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-emerald-500 text-emerald-600 transition">ผู้เยี่ยมชม (Visitor)</button>
+                <button id="tab-admin" onclick="switchLoginTab('admin')" class="flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition">ผู้ดูแลระบบ (Admin)</button>
             </div>
 
-            <!-- Visitor Login Form -->
             <form id="form-visitor" onsubmit="handleVisitorLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">ชื่อ - นามสกุล *</label>
@@ -61,11 +53,10 @@
                 <button type="submit" id="btn-visitor" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg transition shadow-md hover:shadow-lg text-sm">เข้าสู่ระบบ Dashboard</button>
             </form>
 
-            <!-- Admin Login Form -->
             <form id="form-admin" onsubmit="handleAdminLogin(event)" class="space-y-4 hidden">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">รหัสผ่าน Admin *</label>
-                    <input type="password" id="a-pass" required placeholder="รหัสเริ่มต้น 1234" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-800 text-sm">
+                    <input type="password" id="a-pass" required placeholder="รหัสผ่าน" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-800 text-sm">
                 </div>
                 <button type="submit" id="btn-admin" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-lg transition shadow-md hover:shadow-lg text-sm">ยืนยันตัวตน Admin</button>
             </form>
@@ -73,14 +64,14 @@
         </div>
     </div>
 
-    <!-- 2. MAIN HEADER -->
+    <!-- HEADER -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="h-10 w-10 bg-lime-400 rounded-xl flex items-center justify-center font-bold text-white text-xl shadow-sm">O</div>
-                <div>
-                    <h1 class="text-base font-bold text-slate-800 leading-tight" id="event-title-display">กำลังดึงข้อมูล...</h1>
-                    <p class="text-xs text-slate-500">Event Registration Dashboard V2</p>
+                <img id="header-logo" src="" alt="Logo" class="h-10 object-contain">
+                <div class="hidden sm:block">
+                    <h1 class="text-sm font-bold text-slate-800 leading-tight" id="event-title-display">กำลังดึงข้อมูล...</h1>
+                    <p class="text-[11px] text-slate-500">Registration Dashboard V2.1</p>
                 </div>
             </div>
 
@@ -90,16 +81,15 @@
                 </div>
                 <div id="role-badge" class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-md text-xs font-semibold">Visitor</div>
 
-                <!-- Admin Tools -->
                 <button id="btn-logs" onclick="openLogModal()" class="hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="ประวัติการเข้าชม">📋</button>
                 <button id="btn-changepass" onclick="openPassModal()" class="hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="แก้ไขรหัสผ่าน">⚙️</button>
                 <button onclick="refreshData()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="รีเฟรชข้อมูล">🔄</button>
-                <button onclick="logout()" class="text-xs font-semibold text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg transition">ออกจากระบบ</button>
+                <button onclick="logout()" class="text-xs font-semibold text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg transition">ออก</button>
             </div>
         </div>
     </header>
 
-    <!-- 3. MAIN DASHBOARD BODY -->
+    <!-- DASHBOARD BODY -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
         
         <!-- KPI METRICS -->
@@ -108,15 +98,15 @@
                 <p class="text-xs font-medium text-slate-500">ผู้ลงทะเบียนทั้งหมด</p>
                 <p class="text-2xl sm:text-3xl font-bold text-slate-800 mt-1" id="kpi-total">0</p>
             </div>
-            <div class="bg-white p-4 rounded-xl border-l-4 border-emerald-500 border-t border-r border-b border-slate-200 shadow-sm">
+            <div class="bg-white p-4 rounded-xl border-l-4 border-emerald-500 border-y border-r border-slate-200 shadow-sm">
                 <p class="text-xs font-medium text-emerald-600">ลงทะเบียนหน้างาน</p>
                 <p class="text-2xl sm:text-3xl font-bold text-emerald-600 mt-1" id="kpi-registered">0</p>
             </div>
-            <div class="bg-white p-4 rounded-xl border-l-4 border-amber-500 border-t border-r border-b border-slate-200 shadow-sm">
+            <div class="bg-white p-4 rounded-xl border-l-4 border-amber-500 border-y border-r border-slate-200 shadow-sm">
                 <p class="text-xs font-medium text-amber-600">รอยืนยัน</p>
                 <p class="text-2xl sm:text-3xl font-bold text-amber-600 mt-1" id="kpi-pending">0</p>
             </div>
-            <div class="bg-white p-4 rounded-xl border-l-4 border-rose-500 border-t border-r border-b border-slate-200 shadow-sm">
+            <div class="bg-white p-4 rounded-xl border-l-4 border-rose-500 border-y border-r border-slate-200 shadow-sm">
                 <p class="text-xs font-medium text-rose-500">ไม่เข้าร่วม</p>
                 <p class="text-2xl sm:text-3xl font-bold text-rose-500 mt-1" id="kpi-declined">0</p>
             </div>
@@ -125,25 +115,34 @@
         <!-- CHARTS SECTION -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">📊 สัดส่วนสถานะการเข้าร่วม</h3>
+                <h3 class="text-sm font-semibold text-slate-700 mb-4">📊 สัดส่วนสถานะการเข้าร่วม</h3>
                 <div class="h-64 relative flex items-center justify-center">
                     <canvas id="statusChart"></canvas>
                 </div>
             </div>
             <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">🏢 สัดส่วนจำแนกตามภาคส่วน (Sector)</h3>
+                <h3 class="text-sm font-semibold text-slate-700 mb-4">🏢 สัดส่วนจำแนกตามภาคส่วน</h3>
                 <div class="h-64 relative flex items-center justify-center">
                     <canvas id="sectorChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- PARTICIPANT DATA TABLE -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">📋 รายชื่อผู้ลงทะเบียน</h3>
-                <input type="text" id="search-box" oninput="filterTable()" placeholder="ค้นหาชื่อ, องค์กร, หรือภาคส่วน..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <!-- DATA TABLE -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50">
+                <h3 class="text-sm font-semibold text-slate-700">📋 รายชื่อผู้ลงทะเบียน</h3>
+                <input type="text" id="search-box" oninput="applyFilters()" placeholder="ค้นหาชื่อ, องค์กร..." class="text-xs border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500">
             </div>
+            
+            <!-- TABS กรองสถานะ -->
+            <div class="flex flex-wrap border-b border-slate-200 bg-white px-2">
+                <button onclick="setFilterTab('all')" id="tab-all" class="px-4 py-2.5 text-xs font-semibold border-b-2 border-slate-800 text-slate-800 transition">ทั้งหมด</button>
+                <button onclick="setFilterTab('ลงทะเบียนหน้างาน')" id="tab-reg" class="px-4 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">ลงทะเบียนหน้างาน</button>
+                <button onclick="setFilterTab('รอยืนยัน')" id="tab-pend" class="px-4 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">รอยืนยัน</button>
+                <button onclick="setFilterTab('ไม่เข้าร่วม')" id="tab-dec" class="px-4 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">ไม่เข้าร่วม</button>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
                     <thead class="bg-slate-50 text-slate-500 uppercase border-b border-slate-200">
@@ -163,12 +162,11 @@
         </div>
     </main>
 
-    <!-- 4. ADMIN MODALS -->
-    <!-- Access Log Modal -->
+    <!-- ADMIN MODALS (Logs & Password) - ซ่อนไว้ -->
     <div id="modal-logs" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[85vh] flex flex-col">
             <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                <h3 class="font-bold text-slate-800 text-base">📋 ประวัติการเข้าใช้งานระบบ (Access Log)</h3>
+                <h3 class="font-bold text-slate-800 text-base">📋 ประวัติการเข้าใช้งานระบบ</h3>
                 <button onclick="closeModal('modal-logs')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
             <div class="overflow-y-auto mt-4 flex-1">
@@ -187,18 +185,17 @@
         </div>
     </div>
 
-    <!-- Change Password Modal -->
     <div id="modal-pass" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
             <h3 class="font-bold text-slate-800 text-base mb-4">⚙️ แก้ไขรหัสผ่าน Admin</h3>
             <form onsubmit="handleChangePassword(event)" class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">รหัสผ่านปัจจุบัน</label>
-                    <input type="password" id="cp-old" required class="w-full px-3 py-2 text-xs rounded border border-slate-200 focus:ring-2 focus:ring-slate-800 outline-none">
+                    <input type="password" id="cp-old" required class="w-full px-3 py-2 text-xs rounded border border-slate-200">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">รหัสผ่านใหม่</label>
-                    <input type="password" id="cp-new" required class="w-full px-3 py-2 text-xs rounded border border-slate-200 focus:ring-2 focus:ring-slate-800 outline-none">
+                    <input type="password" id="cp-new" required class="w-full px-3 py-2 text-xs rounded border border-slate-200">
                 </div>
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="closeModal('modal-pass')" class="flex-1 py-2 text-xs bg-slate-100 hover:bg-slate-200 rounded font-medium">ยกเลิก</button>
@@ -208,19 +205,25 @@
         </div>
     </div>
 
-    <!-- 5. JAVASCRIPT ENGINE -->
+    <!-- JAVASCRIPT LOGIC -->
     <script>
+        // Register Chart.js DataLabels Plugin
+        Chart.register(ChartDataLabels);
+
         let rawParticipants = [];
         let statusChartInstance = null;
         let sectorChartInstance = null;
+        let currentStatusFilter = 'all';
+
+        // Set Logos
+        document.getElementById('login-logo').src = LOGO_URL;
+        document.getElementById('header-logo').src = LOGO_URL;
 
         // Realtime Clock
         setInterval(() => {
-            const now = new Date();
-            document.getElementById('realtime-clock').textContent = now.toLocaleTimeString('th-TH');
+            document.getElementById('realtime-clock').textContent = new Date().toLocaleTimeString('th-TH');
         }, 1000);
 
-        // Session State Handler
         window.addEventListener('DOMContentLoaded', () => {
             const sessionRole = localStorage.getItem('oic_v2_role');
             if (sessionRole) {
@@ -230,69 +233,57 @@
             }
         });
 
-        function switchTab(tab) {
+        function switchLoginTab(tab) {
             document.getElementById('login-error').classList.add('hidden');
-            if (tab === 'visitor') {
-                document.getElementById('form-visitor').classList.remove('hidden');
-                document.getElementById('form-admin').classList.add('hidden');
-                document.getElementById('tab-visitor').className = "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-emerald-500 text-emerald-600 transition";
-                document.getElementById('tab-admin').className = "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition";
-            } else {
-                document.getElementById('form-visitor').classList.add('hidden');
-                document.getElementById('form-admin').classList.remove('hidden');
-                document.getElementById('tab-visitor').className = "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition";
-                document.getElementById('tab-admin').className = "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-slate-800 text-slate-800 transition";
-            }
+            document.getElementById('form-visitor').classList.toggle('hidden', tab !== 'visitor');
+            document.getElementById('form-admin').classList.toggle('hidden', tab !== 'admin');
+            
+            document.getElementById('tab-visitor').className = tab === 'visitor' 
+                ? "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-emerald-500 text-emerald-600" 
+                : "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-transparent text-slate-400";
+            
+            document.getElementById('tab-admin').className = tab === 'admin' 
+                ? "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-slate-800 text-slate-800" 
+                : "flex-1 py-2.5 font-semibold text-sm text-center border-b-2 border-transparent text-slate-400";
         }
 
         async function handleVisitorLogin(e) {
             e.preventDefault();
             const name = document.getElementById('v-name').value.trim();
             const email = document.getElementById('v-email').value.trim();
-            toggleBtn('btn-visitor', true);
+            document.getElementById('btn-visitor').disabled = true;
 
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'visitor_login', name, email })
-                });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'visitor_login', name, email }) });
                 const data = await res.json();
                 if (data.status === 'success') {
                     localStorage.setItem('oic_v2_role', 'visitor');
-                    document.getElementById('auth-modal').classList.add('hidden');
-                    setupRoleUI('visitor');
-                    fetchDashboardData();
+                    location.reload();
                 }
             } catch (err) {
-                showError("ไม่สามารถติดต่อเซิร์ฟเวอร์ API ได้ กรุณาตรวจสอบ URL");
-            } finally {
-                toggleBtn('btn-visitor', false);
+                showError("ไม่สามารถติดต่อเซิร์ฟเวอร์ API ได้");
+                document.getElementById('btn-visitor').disabled = false;
             }
         }
 
         async function handleAdminLogin(e) {
             e.preventDefault();
             const password = document.getElementById('a-pass').value.trim();
-            toggleBtn('btn-admin', true);
+            document.getElementById('btn-admin').disabled = true;
 
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'admin_login', password })
-                });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'admin_login', password }) });
                 const data = await res.json();
                 if (data.status === 'success') {
                     localStorage.setItem('oic_v2_role', 'admin');
-                    document.getElementById('auth-modal').classList.add('hidden');
-                    setupRoleUI('admin');
-                    fetchDashboardData();
+                    location.reload();
                 } else {
-                    showError(data.message || "รหัสผ่านไม่ถูกต้อง");
+                    showError(data.message);
+                    document.getElementById('btn-admin').disabled = false;
                 }
             } catch (err) {
                 showError("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
-            } finally {
-                toggleBtn('btn-admin', false);
+                document.getElementById('btn-admin').disabled = false;
             }
         }
 
@@ -303,23 +294,15 @@
                 badge.className = 'bg-slate-800 text-white px-2.5 py-1 rounded-md text-xs font-semibold';
                 document.getElementById('btn-logs').classList.remove('hidden');
                 document.getElementById('btn-changepass').classList.remove('hidden');
-            } else {
-                badge.textContent = 'Visitor';
-                badge.className = 'bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-md text-xs font-semibold';
-                document.getElementById('btn-logs').classList.add('hidden');
-                document.getElementById('btn-changepass').classList.add('hidden');
             }
         }
 
         async function fetchDashboardData() {
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'get_data' })
-                });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'get_data' }) });
                 const result = await res.json();
                 if (result.status === 'success') {
-                    document.getElementById('event-title-display').textContent = result.eventTitle || "Event Registration Dashboard";
+                    document.getElementById('event-title-display').textContent = result.eventTitle;
                     processData(result.data);
                 }
             } catch (err) {
@@ -332,8 +315,6 @@
             let regCount = 0, pendCount = 0, decCount = 0;
             const sectorMap = {};
 
-            // อ่านข้อมูลตั้งแต่แถวที่ 6 ลงไป (Index 5)
-            // A=ลำดับ, B=ชื่อ, C=องค์กร, D=ภาคส่วน, E=สถานะ
             for (let i = 5; i < rows.length; i++) {
                 const r = rows[i];
                 if (!r || !r[1] || r[1].toString().trim() === "") continue;
@@ -347,13 +328,10 @@
                 };
 
                 rawParticipants.push(item);
-
-                // นับสถานะ
                 if (item.status.includes("ลงทะเบียน")) regCount++;
                 else if (item.status.includes("ไม่เข้าร่วม")) decCount++;
                 else pendCount++;
 
-                // นับภาคส่วน
                 sectorMap[item.sector] = (sectorMap[item.sector] || 0) + 1;
             }
 
@@ -363,11 +341,29 @@
             document.getElementById('kpi-declined').textContent = decCount;
 
             renderCharts({ regCount, pendCount, decCount }, sectorMap);
-            renderTable(rawParticipants);
+            applyFilters();
         }
 
         function renderCharts(statusCounts, sectorMap) {
-            // Status Doughnut Chart
+            const commonOptions = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { family: 'Prompt' } } },
+                    datalabels: {
+                        color: '#ffffff',
+                        font: { weight: 'bold', size: 11, family: 'Prompt' },
+                        formatter: (value, ctx) => {
+                            if (value === 0) return null;
+                            let sum = 0;
+                            let dataArr = ctx.chart.data.datasets[0].data;
+                            dataArr.forEach(data => { sum += data; });
+                            let percentage = (value * 100 / sum).toFixed(0) + "%";
+                            return `${value} (${percentage})`;
+                        }
+                    }
+                }
+            };
+
             const ctxStatus = document.getElementById('statusChart').getContext('2d');
             if (statusChartInstance) statusChartInstance.destroy();
             statusChartInstance = new Chart(ctxStatus, {
@@ -379,10 +375,9 @@
                         backgroundColor: ['#10b981', '#f59e0b', '#f43f5e']
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: commonOptions
             });
 
-            // Sector Pie Chart
             const ctxSector = document.getElementById('sectorChart').getContext('2d');
             if (sectorChartInstance) sectorChartInstance.destroy();
             sectorChartInstance = new Chart(ctxSector, {
@@ -391,18 +386,42 @@
                     labels: Object.keys(sectorMap),
                     datasets: [{
                         data: Object.values(sectorMap),
-                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#eab308', '#64748b']
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#eab308']
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: commonOptions
             });
+        }
+
+        // TABS FILTER LOGIC
+        function setFilterTab(status) {
+            currentStatusFilter = status;
+            const tabs = ['all', 'reg', 'pend', 'dec'];
+            const ids = { 'all': 'tab-all', 'ลงทะเบียนหน้างาน': 'tab-reg', 'รอยืนยัน': 'tab-pend', 'ไม่เข้าร่วม': 'tab-dec' };
+            
+            tabs.forEach(t => {
+                document.getElementById('tab-'+t).className = "px-4 py-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition";
+            });
+            document.getElementById(ids[status]).className = "px-4 py-2.5 text-xs font-semibold border-b-2 border-slate-800 text-slate-800 transition";
+            
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const query = document.getElementById('search-box').value.toLowerCase();
+            const filtered = rawParticipants.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(query) || p.org.toLowerCase().includes(query);
+                const matchTab = currentStatusFilter === 'all' || p.status.includes(currentStatusFilter);
+                return matchSearch && matchTab;
+            });
+            renderTable(filtered);
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลรายชื่อ</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">ไม่พบข้อมูลที่ค้นหา</td></tr>';
                 return;
             }
 
@@ -412,7 +431,7 @@
                 if (item.status.includes("ไม่เข้าร่วม")) badgeClass = "bg-rose-50 text-rose-600 border border-rose-200";
 
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition">
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100 last:border-0">
                         <td class="px-4 py-3 font-medium text-slate-500">${item.index}</td>
                         <td class="px-4 py-3 font-semibold text-slate-800">${item.name}</td>
                         <td class="px-4 py-3 text-slate-600">${item.org}</td>
@@ -423,39 +442,24 @@
             });
         }
 
-        function filterTable() {
-            const query = document.getElementById('search-box').value.toLowerCase();
-            const filtered = rawParticipants.filter(p => 
-                p.name.toLowerCase().includes(query) || 
-                p.org.toLowerCase().includes(query) || 
-                p.sector.toLowerCase().includes(query)
-            );
-            renderTable(filtered);
-        }
-
         async function openLogModal() {
             document.getElementById('modal-logs').classList.remove('hidden');
             const tbody = document.getElementById('log-table-body');
             tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">กำลังดึงประวัติ...</td></tr>';
             
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'get_logs' })
-                });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'get_logs' }) });
                 const result = await res.json();
                 if (result.status === 'success' && result.data) {
                     tbody.innerHTML = '';
                     for (let i = 1; i < result.data.length; i++) {
                         const r = result.data[i];
-                        tbody.innerHTML += `
-                            <tr>
-                                <td class="p-2.5 text-slate-600">${r[0]}</td>
-                                <td class="p-2.5 font-semibold text-slate-700">${r[1]}</td>
-                                <td class="p-2.5 text-slate-500">${r[2]}</td>
-                                <td class="p-2.5 text-slate-800 font-medium">${r[3]}</td>
-                            </tr>
-                        `;
+                        tbody.innerHTML += `<tr>
+                            <td class="p-2.5 text-slate-600">${r[0]}</td>
+                            <td class="p-2.5 font-semibold text-slate-700">${r[1]}</td>
+                            <td class="p-2.5 text-slate-500">${r[2]}</td>
+                            <td class="p-2.5 text-slate-800 font-medium">${r[3]}</td>
+                        </tr>`;
                     }
                 }
             } catch (err) {
@@ -469,15 +473,12 @@
             const newPassword = document.getElementById('cp-new').value;
 
             try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'change_password', oldPassword, newPassword })
-                });
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'change_password', oldPassword, newPassword }) });
                 const result = await res.json();
                 alert(result.message);
                 if (result.status === 'success') closeModal('modal-pass');
             } catch (err) {
-                alert("เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน");
+                alert("เกิดข้อผิดพลาด");
             }
         }
 
@@ -485,7 +486,6 @@
         function openPassModal() { document.getElementById('modal-pass').classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
         function logout() { localStorage.removeItem('oic_v2_role'); location.reload(); }
-        function toggleBtn(id, loading) { document.getElementById(id).disabled = loading; }
         function showError(msg) {
             const err = document.getElementById('login-error');
             err.textContent = msg;
