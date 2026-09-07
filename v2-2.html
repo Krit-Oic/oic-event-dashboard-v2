@@ -94,7 +94,6 @@
         <!-- KPI METRICS -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <!-- เปลี่ยนข้อความเป็น จำนวนเรียนเชิญร่วมงาน -->
                 <p class="text-xs font-medium text-slate-500">จำนวนเรียนเชิญร่วมงาน</p>
                 <p class="text-2xl sm:text-3xl font-bold text-slate-800 mt-1" id="kpi-total">0</p>
             </div>
@@ -121,7 +120,7 @@
                 </div>
             </div>
             <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <h3 class="text-sm font-semibold text-slate-700 mb-4">🏢 สัดส่วนจำแนกตามภาคส่วน</h3>
+                <h3 class="text-sm font-semibold text-slate-700 mb-4">🏢 สัดส่วนจำแนกตามภาคส่วน (เฉพาะผู้ลงทะเบียนหน้างาน)</h3>
                 <div class="h-64 relative flex items-center justify-center">
                     <canvas id="sectorChart"></canvas>
                 </div>
@@ -301,7 +300,7 @@
                 badge.className = 'bg-slate-800 text-white px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-semibold mr-auto sm:mr-0';
                 document.getElementById('btn-logs').classList.remove('hidden');
                 document.getElementById('btn-changepass').classList.remove('hidden');
-                document.getElementById('btn-export').classList.remove('hidden'); // แสดงปุ่ม Export
+                document.getElementById('btn-export').classList.remove('hidden');
             }
         }
 
@@ -321,7 +320,7 @@
         function processData(rows) {
             rawParticipants = [];
             let regCount = 0, pendCount = 0, decCount = 0;
-            const rawSectorMap = {}; // เก็บข้อมูลดิบก่อนแยกกลุ่ม
+            const rawSectorMap = {}; // เก็บข้อมูลดิบก่อนแยกกลุ่ม (เฉพาะคนที่ลงทะเบียนแล้ว)
 
             for (let i = 5; i < rows.length; i++) {
                 const r = rows[i];
@@ -337,20 +336,27 @@
 
                 rawParticipants.push(item);
                 
-                if (item.status.includes("ลงทะเบียน")) regCount++;
-                else if (item.status.includes("ไม่เข้าร่วม")) decCount++;
-                else pendCount++;
-
-                rawSectorMap[item.sector] = (rawSectorMap[item.sector] || 0) + 1;
+                if (item.status.includes("ลงทะเบียน")) {
+                    regCount++;
+                    // นับจำนวนภาคส่วน *เฉพาะ* คนที่มีสถานะ "ลงทะเบียนหน้างาน" เท่านั้น
+                    rawSectorMap[item.sector] = (rawSectorMap[item.sector] || 0) + 1;
+                }
+                else if (item.status.includes("ไม่เข้าร่วม")) {
+                    decCount++;
+                }
+                else {
+                    pendCount++;
+                }
             }
 
-            // จัดกลุ่ม < 5% เป็น "อื่นๆ" และเรียงลำดับ
-            const totalParticipants = rawParticipants.length;
+            // จัดกลุ่ม < 5% เป็น "อื่นๆ" และเรียงลำดับ สำหรับกราฟภาคส่วน (คำนวณจากยอดที่ลงทะเบียนจริง regCount)
             const filteredSectorMap = {};
             let othersCount = 0;
 
             for (const [sector, count] of Object.entries(rawSectorMap)) {
-                const percentage = (count / totalParticipants) * 100;
+                // คำนวณเปอร์เซ็นต์โดยใช้ยอดคนที่ 'ลงทะเบียนหน้างาน' เป็นฐาน (regCount)
+                const percentage = regCount > 0 ? (count / regCount) * 100 : 0;
+                
                 if (percentage < 5 && sector !== "อื่นๆ") {
                     othersCount += count;
                 } else {
@@ -368,7 +374,7 @@
                 sortedSectorMap["อื่นๆ"] = (sortedSectorMap["อื่นๆ"] || 0) + othersCount;
             }
 
-            document.getElementById('kpi-total').textContent = totalParticipants;
+            document.getElementById('kpi-total').textContent = rawParticipants.length;
             document.getElementById('kpi-registered').textContent = regCount;
             document.getElementById('kpi-pending').textContent = pendCount;
             document.getElementById('kpi-declined').textContent = decCount;
